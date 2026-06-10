@@ -1,1 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Work Tracker</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --surface: #ffffff;
+      --surface-2: #eef2f6;
+      --text: #18202a;
+      --muted: #667085;
+      --line: #d9e0e8;
+      --accent: #146c94;
+      --accent-2: #19a974;
+      --holiday: #f3bd2b;
+      --gov: #dc3d4b;
+      --shadow: 0 14px 34px rgba(24, 32, 42, .09);
+    }
 
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #111418;
+      --surface: #1a2027;
+      --surface-2: #242c35;
+      --text: #eef3f8;
+      --muted: #a6b1bf;
+      --line: #303a45;
+      --accent: #4fb3d8;
+      --accent-2: #35c58d;
+      --holiday: #e2aa26;
+      --gov: #ff6574;
+      --shadow: 0 14px 34px rgba(0, 0, 0, .32);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 18px 0 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 5vw, 2.6rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: .98rem;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .icon-button,
+    .text-button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: none;
+      cursor: pointer;
+    }
+
+    .icon-button {
+      width: 44px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 1.16rem;
+    }
+
+    .text-button {
+      padding: 0 13px;
+      font-weight: 700;
+    }
+
+    .icon-button[aria-pressed="true"],
+    .text-button[aria-pressed="true"] {
+      border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+      background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+      color: var(--accent);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .metric,
+    .panel,
+    .month-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric {
+      padding: 15px;
+      min-height: 104px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: clamp(1.55rem, 9vw, 2.25rem);
+      line-height: 1;
+    }
+
+    .progress-panel {
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 14px;
+      margin-top: 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width .25s ease;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+
+    .dot.completed {
+      background: var(--accent-2);
+      border-color: var(--accent-2);
+    }
+
+    .dot.weekend {
+      background: var(--holiday);
+      border-color: var(--holiday);
+    }
+
+    .dot.gov {
+      background: var(--gov);
+      border-color: var(--gov);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .month-card {
+      padding: 14px;
+    }
+
+    .month-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+
+    .month-head h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .month-stats {
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .weekdays,
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .weekdays {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .day {
+      aspect-ratio: 1;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      position: relative;
+      font-size: .86rem;
+      font-weight: 800;
+      cursor: default;
+    }
+
+    .day.blank {
+      visibility: hidden;
+    }
+
+    .day.workday {
+      background: var(--surface);
+    }
+
+    .day.completed {
+      background: color-mix(in srgb, var(--accent-2) 20%, var(--surface));
+      border-color: color-mix(in srgb, var(--accent-2) 68%, var(--line));
+      color: var(--accent-2);
+    }
+
+    .day.weekend {
+      background: color-mix(in srgb, var(--holiday) 22%, var(--surface));
+      border-color: color-mix(in srgb, var(--holiday) 70%, var(--line));
+    }
+
+    .day.gov {
+      background: color-mix(in srgb, var(--gov) 20%, var(--surface));
+      border-color: color-mix(in srgb, var(--gov) 75%, var(--line));
+      color: var(--gov);
+    }
+
+    .day.today {
+      outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      outline-offset: 2px;
+    }
+
+    .day[data-clickable="true"] {
+      cursor: pointer;
+    }
+
+    .day::after {
+      content: attr(data-mark);
+      position: absolute;
+      right: 4px;
+      bottom: 2px;
+      font-size: .64rem;
+      color: currentColor;
+      opacity: .9;
+    }
+
+    .empty-note {
+      padding: 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .dashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .calendar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .app {
+        padding: 14px 10px;
+      }
+
+      .dashboard {
+        gap: 8px;
+      }
+
+      .metric {
+        padding: 12px;
+        min-height: 92px;
+      }
+
+      .month-card {
+        padding: 10px;
+      }
+
+      .weekdays,
+      .days {
+        gap: 4px;
+      }
+
+      .day {
+        border-radius: 6px;
+        font-size: .78rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>Daily Work Tracker</h1>
+        <p class="subtitle">11 June 2026 to 31 December 2026</p>
+      </div>
+      <div class="toolbar" aria-label="Tracker controls">
+        <button class="text-button" id="govToggle" type="button" aria-pressed="true" title="Include government holidays">Gov holidays</button>
+        <button class="icon-button" id="themeToggle" type="button" aria-pressed="false" title="Toggle dark mode">DM</button>
+        <button class="icon-button" id="resetButton" type="button" title="Reset saved settings">R</button>
+      </div>
+    </header>
+
+    <section class="dashboard" aria-label="Dashboard">
+      <article class="metric">
+        <span>Total working days</span>
+        <strong id="totalWorking">0</strong>
+      </article>
+      <article class="metric">
+        <span>Completed days</span>
+        <strong id="completedDays">0</strong>
+      </article>
+      <article class="metric">
+        <span>Remaining days</span>
+        <strong id="remainingDays">0</strong>
+      </article>
+      <article class="metric">
+        <span>Progress</span>
+        <strong id="progressPercent">0%</strong>
+      </article>
+    </section>
+
+    <section class="panel progress-panel" aria-label="Progress summary">
+      <div class="progress-row">
+        <span id="statusText">Automatic completion starts after 4 PM.</span>
+        <span id="lastUpdated"></span>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="legend" aria-label="Legend">
+        <span><i class="dot completed"></i> Completed</span>
+        <span><i class="dot weekend"></i> Saturday/Sunday</span>
+        <span><i class="dot gov"></i> Government holiday</span>
+        <span><i class="dot"></i> Working day</span>
+      </div>
+    </section>
+
+    <section class="calendar" id="calendar" aria-label="Monthly calendar"></section>
+  </main>
+
+  <script>
+    const START = new Date(2026, 5, 11);
+    const END = new Date(2026, 11, 31);
+    const STORAGE_KEY = "daily-tracker-2026";
+
+    const governmentHolidays = new Map([
+      ["2026-08-15", "Independence Day"],
+      ["2026-08-26", "Milad-un-Nabi"],
+      ["2026-10-02", "Gandhi Jayanti"],
+      ["2026-10-20", "Dussehra"],
+      ["2026-11-08", "Diwali"],
+      ["2026-11-24", "Guru Nanak Jayanti"],
+      ["2026-12-25", "Christmas"]
+    ]);
+
+    const state = loadState();
+    const els = {
+      calendar: document.getElementById("calendar"),
+      totalWorking: document.getElementById("totalWorking"),
+      completedDays: document.getElementById("completedDays"),
+      remainingDays: document.getElementById("remainingDays"),
+      progressPercent: document.getElementById("progressPercent"),
+      progressFill: document.getElementById("progressFill"),
+      statusText: document.getElementById("statusText"),
+      lastUpdated: document.getElementById("lastUpdated"),
+      govToggle: document.getElementById("govToggle"),
+      themeToggle: document.getElementById("themeToggle"),
+      resetButton: document.getElementById("resetButton")
+    };
+
+    function loadState() {
+      const fallback = { includeGov: true, theme: "light" };
+      try {
+        return { ...fallback, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function dateKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    function eachDate(start, end) {
+      const dates = [];
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        dates.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return dates;
+    }
+
+    function isWeekend(date) {
+      return date.getDay() === 0 || date.getDay() === 6;
+    }
+
+    function isGovHoliday(date) {
+      return state.includeGov && governmentHolidays.has(dateKey(date));
+    }
+
+    function isWorkingDay(date) {
+      return !isWeekend(date) && !isGovHoliday(date);
+    }
+
+    function completionCutoff(now) {
+      const cutoff = new Date(now);
+      cutoff.setHours(16, 0, 0, 0);
+      if (now < cutoff) {
+        cutoff.setDate(cutoff.getDate() - 1);
+      }
+      return cutoff;
+    }
+
+    function isCompleted(date, now) {
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+      return isWorkingDay(date) && dayEnd <= completionCutoff(now);
+    }
+
+    function monthsBetween(start, end) {
+      const months = [];
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (cursor <= limit) {
+        months.push(new Date(cursor));
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      return months;
+    }
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = state.theme;
+      const dark = state.theme === "dark";
+      els.themeToggle.setAttribute("aria-pressed", String(dark));
+      els.themeToggle.textContent = dark ? "LM" : "DM";
+    }
+
+    function render() {
+      applyTheme();
+      els.govToggle.setAttribute("aria-pressed", String(state.includeGov));
+      const now = new Date();
+      const allDates = eachDate(START, END);
+      const working = allDates.filter(isWorkingDay);
+      const completed = working.filter(date => isCompleted(date, now));
+      const remaining = working.length - completed.length;
+      const progress = working.length ? Math.round((completed.length / working.length) * 100) : 0;
+
+      els.totalWorking.textContent = working.length;
+      els.completedDays.textContent = completed.length;
+      els.remainingDays.textContent = remaining;
+      els.progressPercent.textContent = `${progress}%`;
+      els.progressFill.style.width = `${progress}%`;
+      els.statusText.textContent = now < START
+        ? "Tracking starts on 11 June 2026."
+        : "Working days are completed automatically after 4 PM.";
+      els.lastUpdated.textContent = `Updated ${now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
+
+      els.calendar.innerHTML = "";
+      for (const month of monthsBetween(START, END)) {
+        els.calendar.appendChild(renderMonth(month, now));
+      }
+    }
+
+    function renderMonth(monthDate, now) {
+      const month = monthDate.getMonth();
+      const monthStart = new Date(monthDate.getFullYear(), month, 1);
+      const monthEnd = new Date(monthDate.getFullYear(), month + 1, 0);
+      const visibleStart = monthStart < START ? START : monthStart;
+      const visibleEnd = monthEnd > END ? END : monthEnd;
+      const monthDates = eachDate(visibleStart, visibleEnd);
+      const working = monthDates.filter(isWorkingDay);
+      const completed = working.filter(date => isCompleted(date, now));
+
+      const card = document.createElement("article");
+      card.className = "month-card";
+
+      const head = document.createElement("div");
+      head.className = "month-head";
+      head.innerHTML = `
+        <h2>${monthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</h2>
+        <span class="month-stats">${completed.length}/${working.length} done</span>
+      `;
+      card.appendChild(head);
+
+      const weekdays = document.createElement("div");
+      weekdays.className = "weekdays";
+      weekdays.innerHTML = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => `<span>${day}</span>`).join("");
+      card.appendChild(weekdays);
+
+      const grid = document.createElement("div");
+      grid.className = "days";
+      const firstOffset = (visibleStart.getDay() + 6) % 7;
+      for (let i = 0; i < firstOffset; i += 1) {
+        const blank = document.createElement("span");
+        blank.className = "day blank";
+        grid.appendChild(blank);
+      }
+
+      for (const date of monthDates) {
+        const key = dateKey(date);
+        const day = document.createElement("button");
+        day.type = "button";
+        day.className = "day";
+        day.textContent = date.getDate();
+        day.title = formatDate(date);
+        day.disabled = true;
+
+        if (isWeekend(date)) {
+          day.classList.add("weekend");
+          day.dataset.mark = "H";
+          day.title += " - Weekend holiday";
+        } else if (isGovHoliday(date)) {
+          day.classList.add("gov");
+          day.dataset.mark = "G";
+          day.title += ` - ${governmentHolidays.get(key)}`;
+        } else {
+          day.classList.add("workday");
+        }
+
+        if (isCompleted(date, now)) {
+          day.classList.add("completed");
+          day.dataset.mark = "C";
+          day.title += " - Completed";
+        }
+
+        if (dateKey(date) === dateKey(now)) {
+          day.classList.add("today");
+        }
+
+        grid.appendChild(day);
+      }
+
+      card.appendChild(grid);
+      return card;
+    }
+
+    els.govToggle.addEventListener("click", () => {
+      state.includeGov = !state.includeGov;
+      saveState();
+      render();
+    });
+
+    els.themeToggle.addEventListener("click", () => {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      saveState();
+      render();
+    });
+
+    els.resetButton.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      Object.assign(state, { includeGov: true, theme: "light" });
+      render();
+    });
+
+    render();
+    setInterval(render, 60 * 1000);
+  </script>
+</body>
+</html>
